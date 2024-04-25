@@ -91,7 +91,7 @@ def find_iterations(variable_name, path_to_files, return_files=False):
         return it_list
 
 def create_pyvista_grid(field_data, name='field_data', spacing=[1, 1, 1], origin=[0, 0, 0]):
-    """Creates a pyvista UniformGrid containing the field data that was passed.
+    """Creates a pyvista ImageData containing the field data that was passed.
     Field data can be either vector data or scalar data.
 
     Args:
@@ -107,11 +107,11 @@ def create_pyvista_grid(field_data, name='field_data', spacing=[1, 1, 1], origin
         ValueError: raised when field_data is not provided in the right format.
 
     Returns:
-        pyvista.core.grid.UniformGrid: pyvista grid containing the fielddata.
+        pyvista.core.grid.ImageData: pyvista grid containing the fielddata.
     """
 
     if isinstance(field_data, np.ndarray):
-        grid = pv.UniformGrid(dims=np.shape(field_data), spacing=spacing, origin=origin)
+        grid = pv.ImageData(dimensions=np.shape(field_data), spacing=spacing, origin=origin)
         grid[name] = field_data.flatten(order="F")
     
     elif isinstance(field_data, list):
@@ -119,7 +119,7 @@ def create_pyvista_grid(field_data, name='field_data', spacing=[1, 1, 1], origin
             if not isinstance(data, np.ndarray):
                 raise ValueError("Data should be passed as an 3d numpy array or as a list of length 3 containing 3d numpy arrays for vector data.")
         
-        grid = pv.UniformGrid(dims=np.shape(field_data[0]), spacing=spacing, origin=origin)
+        grid = pv.ImageData(dimensions=np.shape(field_data[0]), spacing=spacing, origin=origin)
         grid[name] = np.column_stack((field_data[0].flatten(order="F"), field_data[1].flatten(order="F"), field_data[2].flatten(order="F")))
 
     else:
@@ -141,7 +141,7 @@ def get_streamlines(
     return_source=False
     ):
 
-    """Calculates streamlines for a given pyvista UniformGrid containing vector field data. Log scale
+    """Calculates streamlines for a given pyvista ImageData containing vector field data. Log scale
     option for streamlines can be applied later in the add_mesh function.
 
     Args:
@@ -233,7 +233,7 @@ def get_volume(
         TypeError: returned when field data is passed in an incorrect format.
 
     Returns:
-        pyvista.core.grid.UniformGrid: grid containing scalar field data.
+        pyvista.core.grid.ImageData: grid containing scalar field data.
     """    
 
     if not isinstance(field_data, np.ndarray):
@@ -245,7 +245,7 @@ def get_volume(
 
     grid = create_pyvista_grid(field_data, name=name, spacing=spacing, origin=origin)
 
-    # Rerun grid creation with updated origin, grid needs to be recreated as a UniformGrid is required
+    # Rerun grid creation with updated origin, grid needs to be recreated as an ImageData is required
     if mirror_z:
         transform_matrix = np.array([[1, 0, 0, 0],
                             [0, 1, 0, 0],
@@ -301,7 +301,7 @@ def get_plot_object(field_data, **kwargs):
             pyvista PolyData containing the streamlines as tubes, PolyData containing the seeding points and
             dictionary containing remaining keyword arguments.
         
-        pyvista.core.grid.UniformGrid, dict: if field data is scalar data, grid containing scalar field data
+        pyvista.core.grid.ImageData, dict: if field data is scalar data, grid containing scalar field data
             and dictionary containing remaining keyword arguments.
     """
 

@@ -116,7 +116,7 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
 def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
     """Creates a rendered image of either streamline data in the form of a
     pyvista.core.pointset.PolyData object or scalar field data in the form of a 
-    pyvista.core.grid.UniformGrid.
+    pyvista.core.grid.ImageData.
 
     Args:
         plot_objects (list): list of streamline or scalar field data to plot.
@@ -182,7 +182,6 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         off_screen=plotter_settings.pop('off_screen', False),
         notebook=plotter_settings.pop('notebook', False),
         window_size=plotter_settings.pop('window_size', [1024, 768]),
-        multi_samples=plotter_settings.pop('multi_samples', 4),
         line_smoothing=plotter_settings.pop('line_smoothing', True),
         polygon_smoothing=plotter_settings.pop('polygon_smoothing', False),
         lighting=plotter_settings.pop('lighting', 'light_kit')
@@ -194,6 +193,9 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
     return_cpos = plotter_settings.pop('return_cpos', False)
     show_grid = plotter_settings.pop('show_grid', False)
     headless_display = plotter_settings.pop('headless_display', False)
+    anti_aliasing = plotter_settings.pop('anti_aliasing', True)
+    multi_samples = plotter_settings.pop('multi_samples', 4)
+
     
     # Setup headless display when plotting off-screen. Needed for using remote servers.
     if platform.system() == 'Linux' and headless_display:
@@ -224,8 +226,19 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         if isinstance(plot_object, pv.core.pointset.PolyData):
             p.add_mesh(mesh=plot_object, **add_plot_object_kwargs)
 
-        elif isinstance(plot_object, pv.core.grid.UniformGrid):
-            p.add_volume(volume=plot_object, **add_plot_object_kwargs)
+        elif isinstance(plot_object, pv.core.grid.ImageData):
+            volume_or_isosurface = add_plot_object_kwargs.pop('volume_or_isosurface', 'volume')
+            mapper = add_plot_object_kwargs.pop('mapper', 'gpu')
+            shade = add_plot_object_kwargs.pop('shade', True)
+            opacity = add_plot_object_kwargs.pop('opacity', np.linspace(0, 0.10, 256))
+            isosurface_thresholds = add_plot_object_kwargs.pop('isosurface_thresholds', [0])
+            isosurface_opacity = add_plot_object_kwargs.pop('isosurface_opacity', 0.5)
+
+            if volume_or_isosurface == 'volume' or volume_or_isosurface == 'both':
+                p.add_volume(volume=plot_object, mapper = mapper, shade = shade, opacity=opacity, **add_plot_object_kwargs)
+            if volume_or_isosurface == 'isosurface' or volume_or_isosurface == 'both':
+                contours = plot_object.contour(isosurface_thresholds)
+                p.add_mesh(contours, opacity=isosurface_opacity, **add_plot_object_kwargs)
 
     # Additional plotter settings
     for key, value in plotter_settings.items():
@@ -237,6 +250,9 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
 
     if plotter_init_kwargs['off_screen'] and isinstance(screenshot, str):
         p.screenshot(screenshot)
+
+    if anti_aliasing:
+        p.enable_anti_aliasing(aa_type='msaa', multi_samples=multi_samples)
 
     if return_cpos:
         cam = p.show(screenshot=screenshot, return_cpos=return_cpos)
