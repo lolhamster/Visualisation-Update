@@ -3,7 +3,7 @@
 Plotting options include two-dimensional slice plots or three-dimensional plots of the entire scene.
 """
 
-import multiprocessing
+import multiprocess
 import os
 import platform
 import shutil
@@ -130,7 +130,12 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         See https://docs.pyvista.org/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html.
         Some keyword arguments might not be applicable to the streamlines.
 
-    Add_plot_object_kwargs for volume plots:
+    Add_plot_object_kwargs for scalar field plots:
+        volume_or_isosurface (str): String used to choose between plotting the scalar field as a volume plot or an isosurface plot.
+        * 'volume': Renders the scalar field as a volume with a colormap
+        * 'isosurface': Renders surfaces of constant scalar values. These values can be specified or automatically generated
+        * 'both': Renders both the volume cloud and specified isosurfaces.
+        Defaults to 'volume'.
         All possible keyword arguments for the pyvista add_volume function.
         See https://docs.pyvista.org/api/plotting/_autosummary/pyvista.Plotter.add_volume.html.
         Some keyword arguments might not be applicable to the volume plot.
@@ -140,7 +145,8 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         notebook (bool): When True, the resulting plot is placed inline a jupyter notebook.
             Assumes a jupyter console is active. Automatically enables off_screen. Defaults to False.
         window_size (list): Window size in pixels. Defaults to [1024, 768].
-        multi_samples (int):The number of multi-samples used to mitigate aliasing. 4 is a
+        anti_aliasing (bool): Enables anti-aliasing when True. Defaults to True
+        multi_samples (int): The number of multi-samples used to mitigate aliasing. 4 is a
             good default but 8 will have better results with a potential impact on performance.
             Defaults to 4.
         line_smoothing (bool): If True, enable line smoothing. Defaults to True
@@ -155,12 +161,12 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         screenshot (bool or str): When a string is passed a screenshot of the initial plot state 
             is saved with the given string as file name. Defaults to False
         jupyter_backend (str): Jupyter notebook plotting backend to use. One of the following:
-            * 'none' : Do not display in the notebook.
-            * 'pythreejs' : Show a pythreejs widget
             * 'static' : Display a static figure.
+            * 'none' : Do not display in the notebook, currently broken in pyvista.
+            * 'pythreejs' : Show a pythreejs widget
             * 'ipygany' : Show a ipygany widget
             * 'panel' : Show a panel widget.
-            Defaults to 'none'.
+            Defaults to 'static'.
         return_cpos (bool): Return the last camera position from the render window when enabled.
             Deafualts to False.
         headless_display (bool): indicates whether a headless display will be made using Xvfb. Only
@@ -189,7 +195,7 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
 
     transparent_background = plotter_settings.pop('transparent_background', False)
     screenshot = plotter_settings.pop('screenshot', False)
-    jupyter_backend = plotter_settings.pop('jupyter_backend', 'none')
+    jupyter_backend = plotter_settings.pop('jupyter_backend', 'static')
     return_cpos = plotter_settings.pop('return_cpos', False)
     show_grid = plotter_settings.pop('show_grid', False)
     headless_display = plotter_settings.pop('headless_display', False)
@@ -206,7 +212,7 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
     # Initialize plotter
     pv.set_jupyter_backend(jupyter_backend)
     if transparent_background:
-        pv.rcParams['transparent_background'] = True
+        pv.global_theme.transparent_background = True
 
     p = pv.Plotter(**plotter_init_kwargs)
     
@@ -386,7 +392,7 @@ def animator(data_readers, plot_objects_kwargs, n_datasets, save_path='', n_proc
         else:
             arguments = frame_settings[i:]
         
-        with multiprocessing.Pool(n_processes) as pool:
+        with multiprocess.Pool(n_processes) as pool:
             pool.starmap(create_frame, arguments)
             pool.close()
             pool.join()
@@ -542,7 +548,7 @@ def create_scene_view_frames(scene_view_args, meshes, plot_objects_kwargs, save_
         else:
             arguments = scene_view_frame_settings[i:]
         
-        with multiprocessing.Pool(n_processes) as pool:
+        with multiprocess.Pool(n_processes) as pool:
             pool.starmap(plotter, arguments)
             pool.close()
             pool.join()
