@@ -207,6 +207,16 @@ def get_streamlines(
     else:
         return streamlines
 
+def get_arrows(
+    field_data,
+    name='field_data',
+    spacing=[1, 1, 1],
+    origin=[0, 0, 0],
+    mirror_z=False
+    ):
+    grid = create_pyvista_grid(field_data, name=name, spacing=spacing, origin=origin)
+    return grid
+
 def get_volume(
     field_data,
     name='field_data',
@@ -311,6 +321,7 @@ def get_plot_object(field_data, **kwargs):
     mirror_z = kwargs.pop('mirror_z', False)
 
     if len(field_data) == 3:
+
         n_points = kwargs.pop('n_points', 100)
         source_radius = kwargs.pop('source_radius', 20)
         radius = kwargs.pop('radius', 0.1)
@@ -318,26 +329,38 @@ def get_plot_object(field_data, **kwargs):
         source = kwargs.pop('source', None)
         return_source = kwargs.pop('return_source', False)
 
-        returns = get_streamlines(
-            field_data,
-            name=name,
-            spacing=spacing,
-            origin=origin,
-            n_points=n_points,
-            source_radius=source_radius,
-            radius=radius,
-            source_center=source_center,
-            mirror_z=mirror_z,
-            source=source,
-            return_source=return_source
-            )
+        if kwargs['streamlines_or_arrows'] == 'streamlines': # or kwargs['streamlines_or_arrows'] == 'both':
 
-        if return_source:
-            mesh, src = returns
-            return mesh, src, kwargs
+            returns = get_streamlines(
+                field_data,
+                name=name,
+                spacing=spacing,
+                origin=origin,
+                n_points=n_points,
+                source_radius=source_radius,
+                radius=radius,
+                source_center=source_center,
+                mirror_z=mirror_z,
+                source=source,
+                return_source=return_source
+                )
+
+            if return_source:
+                mesh, src = returns
+                return mesh, src, kwargs
+            
+            else:
+                mesh = returns
+                return mesh, kwargs
         
-        else:
-            mesh = returns
+        if kwargs['streamlines_or_arrows'] == 'arrows':
+            mesh = get_arrows(
+                field_data,
+                name=name,
+                spacing=spacing,
+                origin=origin,
+                mirror_z=mirror_z
+            )
             return mesh, kwargs
     
     elif len(field_data) == 1:

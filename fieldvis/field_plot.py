@@ -125,7 +125,14 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         plotter_settings (dict, optional): dictionary containing general plot settings. 
             Defaults to {}.
 
-    Add_plot_object_kwargs for streamline plots:
+    Add_plot_object_kwargs for vector field plots:
+        streamlines_or_arrows (str): String that can be used to pick between plotting streamlines or vector arrows. Accepted options:
+        * 'streamlines': Generates streamlines of the given vector field.
+        * 'arrows': Generates vector arrows of the given vector field.
+        Defaults to 'streamlines'.
+        scale_factor(float): Scale factor of arrow size. Defaults to 1
+        tolerance (float): Determines the fraction of the grid any single arrow can occupy (effectively determines the density of arrows). Defaults to 0.03
+        mask_thresholds (tuple): Tuple of two floats which determine the lower and upper bound for vectors to be rendered. A lower bound of 0.10 excludes vectors with magnitude smaller than 10% of the largest vector in the field. Defaults to [0,1]
         All possible keyword arguments for the pyvista add_mesh function.
         See https://docs.pyvista.org/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html.
         Some keyword arguments might not be applicable to the streamlines.
@@ -229,22 +236,49 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
                     clim[1] = np.nanmax(field.ravel())
             add_plot_object_kwargs['clim'] = clim
 
+        streamlines_or_arrows = add_plot_object_kwargs.pop('streamlines_or_arrows', 'streamlines')
+        factor = add_plot_object_kwargs.pop('scale_factor', 1)
+        tolerance = add_plot_object_kwargs.pop('tolerance', 0.03)
+        low_threshold, high_threshold = add_plot_object_kwargs.pop('mask_thresholds', [0, 1])
+
         if isinstance(plot_object, pv.core.pointset.PolyData):
+            # if streamlines_or_arrows == 'streamlines': # or streamlines_or_arrows == 'both':
             p.add_mesh(mesh=plot_object, **add_plot_object_kwargs)
 
         elif isinstance(plot_object, pv.core.grid.ImageData):
-            volume_or_isosurface = add_plot_object_kwargs.pop('volume_or_isosurface', 'volume')
-            mapper = add_plot_object_kwargs.pop('mapper', 'gpu')
-            shade = add_plot_object_kwargs.pop('shade', True)
-            opacity = add_plot_object_kwargs.pop('opacity', np.linspace(0, 0.10, 256))
-            isosurface_thresholds = add_plot_object_kwargs.pop('isosurface_thresholds', [0])
-            isosurface_opacity = add_plot_object_kwargs.pop('isosurface_opacity', 0.5)
+            if np.ndim(plot_object[plot_object.array_names[0]]) > 1:
+                vector_field = plot_object[plot_object.array_names[0]]
 
-            if volume_or_isosurface == 'volume' or volume_or_isosurface == 'both':
-                p.add_volume(volume=plot_object, mapper = mapper, shade = shade, opacity=opacity, **add_plot_object_kwargs)
-            if volume_or_isosurface == 'isosurface' or volume_or_isosurface == 'both':
-                contours = plot_object.contour(isosurface_thresholds)
-                p.add_mesh(contours, opacity=isosurface_opacity, **add_plot_object_kwargs)
+                vector_magnitudes = np.linalg.norm(vector_field, axis=1)
+                vector_field = vector_field / vector_magnitudes[:, np.newaxis]
+
+                mask_low = vector_magnitudes < low_threshold * np.max(vector_magnitudes)
+                mask_high = vector_magnitudes > high_threshold * np.max(vector_magnitudes)
+
+                vector_magnitudes = vector_magnitudes / vector_magnitudes
+
+                plot_object['vector_magnitudes'] = vector_magnitudes
+                plot_object['vector_magnitudes'][mask_low] = 0
+                plot_object['vector_magnitudes'][mask_high] = 0
+
+                plot_object['vector_field'] = vector_field
+
+                glyphs = plot_object.glyph(orient="vector_field", scale="vector_magnitudes", factor=factor, tolerance = tolerance, geom=pv.Arrow())
+                p.add_mesh(mesh=glyphs, lighting=False, **add_plot_object_kwargs)
+
+            else:
+                volume_or_isosurface = add_plot_object_kwargs.pop('volume_or_isosurface', 'volume')
+                mapper = add_plot_object_kwargs.pop('mapper', 'gpu')
+                shade = add_plot_object_kwargs.pop('shade', True)
+                opacity = add_plot_object_kwargs.pop('opacity', np.linspace(0, 0.10, 256))
+                isosurface_thresholds = add_plot_object_kwargs.pop('isosurface_thresholds', [0])
+                isosurface_opacity = add_plot_object_kwargs.pop('isosurface_opacity', 0.5)
+
+                if volume_or_isosurface == 'volume' or volume_or_isosurface == 'both':
+                    p.add_volume(volume=plot_object, mapper = mapper, shade = shade, opacity=opacity, **add_plot_object_kwargs)
+                if volume_or_isosurface == 'isosurface' or volume_or_isosurface == 'both':
+                    contours = plot_object.contour(isosurface_thresholds)
+                    p.add_mesh(contours, opacity=isosurface_opacity, **add_plot_object_kwargs)
 
     # Additional plotter settings
     for key, value in plotter_settings.items():
