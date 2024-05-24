@@ -18,11 +18,11 @@ import pyvista as pv
 from fieldvis import field_dp
 
 def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=False, clim=None, fig_scale=5, name='slice_plot.png', origin=None, spacing=None):
-    """Shows a slice of a three-dimensional scalar field at a given coordinate on a given axis.
+    """Shows a slice of a three-dimensional scalar or vector field at a given coordinate on a given axis.
     Can be used to find a suitable data range for making volume renderings.
 
     Args:
-        field_data (np.ndarray): three-dimensional numpy array containing scalar field data.
+        field_data (list len 1 or 3): list with three-dimensional numpy arrays containing scalar or vector field data.
         slice_axis (str): string indicating on which axis to slice. 'x', 'y', 'z' as possible options.
         slice_coordinate (float or int): position on the sliced axis, where the slice will happen.
         cmap (str, optional): matplotlib colormap. Defaults to 'jet'.
@@ -45,7 +45,7 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
         spacing = [1, 1, 1]
 
     # Get axis
-    axes_dimensions = [shape + 1 for shape in np.shape(field_data)]
+    axes_dimensions = [shape + 1 for shape in np.shape(field_data[0])]
     max_coords = [origin[i] + spacing[i] * axes_dimensions[i] for i in range(3)]
 
     x, y, z = [np.arange(origin[i], max_coords[i] + spacing[i], spacing[i]) for i in range(3)]
@@ -54,60 +54,140 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
     fig = plt.figure()
     ax = plt.axes()
 
-    # Create plot settings depending on the slice axis.
-    if slice_axis == 'x':
-        aspect_ratio = len(y) / len(z)
+    if len(field_data) == 1:
 
-        closest_coordinate = min(x, key=lambda x:abs(x-slice_coordinate))
-        slice_index = list(x).index(closest_coordinate)
+        field_data = field_data[0]
 
-        sliced_data = field_data[slice_index,:,:]
+        # Create plot settings depending on the slice axis.
+        if slice_axis == 'x':
+            aspect_ratio = 1.2*len(y) / len(z)
 
-        ax.set_xlabel('y-axis')
-        ax.set_ylabel('z-axis')
-        ax.set_title(f'x={closest_coordinate}')
+            closest_coordinate = min(x, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(x).index(closest_coordinate)
 
-        extent = [min(y), max(y), min(z), max(z)]
+            sliced_data = field_data[slice_index,:,:]
 
-    elif slice_axis == 'y':
-        aspect_ratio = len(x) / len(z)
+            ax.set_xlabel('y-axis')
+            ax.set_ylabel('z-axis')
+            ax.set_title(f'x={closest_coordinate}')
 
-        closest_coordinate = min(y, key=lambda x:abs(x-slice_coordinate))
-        slice_index = list(y).index(closest_coordinate)
+            extent = [min(y), max(y), min(z), max(z)]
 
-        sliced_data = field_data[:,slice_index,:]
+        elif slice_axis == 'y':
+            aspect_ratio = 1.2*len(x) / len(z)
 
-        ax.set_xlabel('x-axis')
-        ax.set_ylabel('z-axis')
-        ax.set_title(f'y={closest_coordinate}')
+            closest_coordinate = min(y, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(y).index(closest_coordinate)
 
-        extent = [min(x), max(x), min(z), max(z)]
+            sliced_data = field_data[:,slice_index,:]
 
-    elif slice_axis == 'z':
-        aspect_ratio = len(x) / len(y)
+            ax.set_xlabel('x-axis')
+            ax.set_ylabel('z-axis')
+            ax.set_title(f'y={closest_coordinate}')
 
-        closest_coordinate = min(z, key=lambda x:abs(x-slice_coordinate))
-        slice_index = list(z).index(closest_coordinate)
+            extent = [min(x), max(x), min(z), max(z)]
 
-        sliced_data = field_data[:,:,slice_index]
+        elif slice_axis == 'z':
+            aspect_ratio = 1.2*len(x) / len(y)
 
-        ax.set_xlabel('x-axis')
-        ax.set_ylabel('y-axis')
-        ax.set_title(f'z={closest_coordinate}')
+            closest_coordinate = min(z, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(z).index(closest_coordinate)
 
-        extent = [min(x), max(x), min(y), max(y)]
+            sliced_data = field_data[:,:,slice_index]
 
-    # Create final plot
-    fig.set_size_inches(aspect_ratio*fig_scale, fig_scale)
+            ax.set_xlabel('x-axis')
+            ax.set_ylabel('y-axis')
+            ax.set_title(f'z={closest_coordinate}')
 
-    if log_scale:
-        im = ax.imshow(sliced_data, norm=colors.LogNorm(vmin=np.min(sliced_data), vmax=np.max(sliced_data)), origin='lower', cmap=cmap, extent=extent)
-    else:
-        im = ax.imshow(sliced_data, origin='lower', cmap=cmap, extent=extent)
+            extent = [min(x), max(x), min(y), max(y)]
 
-    plt.colorbar(im)
-    if clim is not None:
-        im.set_clim(vmin=clim[0], vmax=clim[1])
+        # Create final plot
+        fig.set_size_inches(aspect_ratio*fig_scale, fig_scale)
+
+        if log_scale:
+            im = ax.imshow(np.rot90(sliced_data), norm=colors.LogNorm(vmin=np.min(sliced_data), vmax=np.max(sliced_data)), origin='upper', cmap=cmap, extent=extent)
+        else:
+            im = ax.imshow(np.rot90(sliced_data), origin='upper', cmap=cmap, extent=extent)
+
+        plt.colorbar(im)
+        if clim is not None:
+            im.set_clim(vmin=clim[0], vmax=clim[1])
+
+    elif len(field_data) == 3:
+        
+        field_data = np.transpose(field_data, axes=[1,2,3,0])
+
+        if slice_axis == 'x':
+            aspect_ratio = 1.2*len(y) / len(z)
+
+            closest_coordinate = min(x, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(x).index(closest_coordinate)
+            
+            sliced_data = field_data[slice_index,:,:]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+
+            y,z = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
+
+            sliced_data = np.transpose(sliced_data, axes=[1,0,2])
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+
+            if log_scale:
+                strm = ax.streamplot(y, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
+            else:
+                strm = ax.streamplot(y, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, cmap=cmap)
+
+            ax.set_xlabel('y-axis')
+            ax.set_ylabel('z-axis')
+            ax.set_title(f'x={closest_coordinate}')
+
+        elif slice_axis == 'y':
+            aspect_ratio = 1.2*len(x) / len(z)
+
+            closest_coordinate = min(y, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(y).index(closest_coordinate)
+            
+            sliced_data = field_data[slice_index,:,:]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+
+            x,z = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
+
+            sliced_data = np.transpose(sliced_data, axes=[1,0,2])
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+
+            if log_scale:
+                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
+            else:
+                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, cmap=cmap)
+
+            ax.set_xlabel('x-axis')
+            ax.set_ylabel('z-axis')
+            ax.set_title(f'y={closest_coordinate}')
+        
+        elif slice_axis == 'z':
+            aspect_ratio = 1.2*len(x) / len(y)
+
+            closest_coordinate = min(z, key=lambda x:abs(x-slice_coordinate))
+            slice_index = list(z).index(closest_coordinate)
+
+            sliced_data = field_data[:,:,slice_index]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+
+            x,y = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
+
+            sliced_data = np.transpose(sliced_data, axes=[1,0,2])
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+
+            if log_scale:
+                strm = ax.streamplot(x, y, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
+            else:
+                strm = ax.streamplot(x, y, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, cmap=cmap)
+
+            ax.set_xlabel('x-axis')
+            ax.set_ylabel('y-axis')
+            ax.set_title(f'z={closest_coordinate}')
+
+        fig.colorbar(strm.lines)
+        fig.set_size_inches(aspect_ratio*fig_scale, fig_scale)
 
     plt.savefig(name)
     
