@@ -124,17 +124,17 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
             slice_index = list(x).index(closest_coordinate)
             
             sliced_data = field_data[slice_index,:,:]
-            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)
 
             y,z = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
 
             sliced_data = np.transpose(sliced_data, axes=[1,0,2])
-            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0])
 
             if log_scale:
-                strm = ax.streamplot(y, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
+                strm = ax.streamplot(y, z, sliced_data[:,:,1], sliced_data[:,:,2], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
             else:
-                strm = ax.streamplot(y, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, cmap=cmap)
+                strm = ax.streamplot(y, z, sliced_data[:,:,1], sliced_data[:,:,2], color = vector_magnitudes, cmap=cmap)
 
             ax.set_xlabel('y-axis')
             ax.set_ylabel('z-axis')
@@ -147,17 +147,17 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
             slice_index = list(y).index(closest_coordinate)
             
             sliced_data = field_data[slice_index,:,:]
-            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)
 
             x,z = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
 
             sliced_data = np.transpose(sliced_data, axes=[1,0,2])
-            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0])
 
             if log_scale:
-                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
+                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,2], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
             else:
-                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, cmap=cmap)
+                strm = ax.streamplot(x, z, sliced_data[:,:,0], sliced_data[:,:,2], color = vector_magnitudes, cmap=cmap)
 
             ax.set_xlabel('x-axis')
             ax.set_ylabel('z-axis')
@@ -170,12 +170,12 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
             slice_index = list(z).index(closest_coordinate)
 
             sliced_data = field_data[:,:,slice_index]
-            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)[:, :, np.newaxis]
+            vector_magnitudes = np.linalg.norm(sliced_data, axis=2)
 
             x,y = np.meshgrid(range(np.shape(sliced_data)[0]), range(np.shape(sliced_data)[1]))
 
             sliced_data = np.transpose(sliced_data, axes=[1,0,2])
-            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0,2])[:,:,0]
+            vector_magnitudes = np.transpose(vector_magnitudes, axes=[1,0])
 
             if log_scale:
                 strm = ax.streamplot(x, y, sliced_data[:,:,0], sliced_data[:,:,1], color = vector_magnitudes, norm = colors.LogNorm(vmin=np.min(vector_magnitudes), vmax=np.max(vector_magnitudes)), cmap=cmap)
@@ -189,7 +189,8 @@ def plot_slice(field_data, slice_axis, slice_coordinate, cmap='jet', log_scale=F
         fig.colorbar(strm.lines)
         fig.set_size_inches(aspect_ratio*fig_scale, fig_scale)
 
-    plt.savefig(name)
+    if name != '':
+        plt.savefig(name)
     
     return sliced_data, closest_coordinate
 
@@ -300,6 +301,7 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
     pv.set_jupyter_backend(jupyter_backend)
     if transparent_background:
         pv.global_theme.transparent_background = True
+    else: pv.global_theme.transparent_background = False
 
     p = pv.Plotter(**plotter_init_kwargs)
     
@@ -320,6 +322,8 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
         factor = add_plot_object_kwargs.pop('scale_factor', 1)
         tolerance = add_plot_object_kwargs.pop('tolerance', 0.03)
         low_threshold, high_threshold = add_plot_object_kwargs.pop('mask_thresholds', [0, 1])
+        hide_horizontal_vectors = add_plot_object_kwargs.pop('hide_horizontal_vectors', False)
+        hide_vertical_vectors = add_plot_object_kwargs.pop('hide_vertical_vectors', False)
 
         if isinstance(plot_object, pv.core.pointset.PolyData):
             # if streamlines_or_arrows == 'streamlines': # or streamlines_or_arrows == 'both':
@@ -334,12 +338,17 @@ def plotter(plot_objects, add_plot_objects_kwargs, plotter_settings={}):
 
                 mask_low = vector_magnitudes < low_threshold * np.max(vector_magnitudes)
                 mask_high = vector_magnitudes > high_threshold * np.max(vector_magnitudes)
+                mask_horizontal = np.argwhere(vector_field[:,2] < 0.5)
+                mask_vertical = np.argwhere(vector_field[:,2] > 0.5)
 
-                vector_magnitudes = vector_magnitudes / vector_magnitudes
-
-                plot_object['vector_magnitudes'] = vector_magnitudes
+                plot_object['vector_magnitudes'] = np.ones(vector_magnitudes.shape)
                 plot_object['vector_magnitudes'][mask_low] = 0
                 plot_object['vector_magnitudes'][mask_high] = 0
+                
+                if hide_horizontal_vectors:
+                    plot_object['vector_magnitudes'][mask_horizontal] = 0
+                if hide_vertical_vectors:
+                    plot_object['vector_magnitudes'][mask_vertical] = 0
 
                 plot_object['vector_field'] = vector_field
 
