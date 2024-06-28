@@ -1,2 +1,5 @@
+# Visualization-update
+This repository provides an updated version of the FieldVis visualization package, along with an extra example notebook used for visualizations in my thesis. The new version of FieldVis offers more 3D plot types and supports vector field plotting in slice plots. My thesis 'Improving the visualization process for binary neutron star merger simulations' is included in the repository and includes some examples of the new features being used. The previous readme description is included for completeness.
+
 # Visualization-of-binary-neutron-star-merger-simulations
 This repository provides the code referred to in my thesis: Visualization of binary neutron-star merger simulations. Included in this repository are the source code for the python package FieldVis that was developed for this thesis as well as example uses and animations. FieldVis is a fast package for creating three dimensional data visualizations built around the package PyVista, designed for visualizing binary neutron-star merger remnant simulations.
